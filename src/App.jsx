@@ -14,21 +14,21 @@ const PAL = {
   tire:"#0f0f1a", tireBlue:"#38bdf8",
   body:"#1a1000", bodyYellow:"#eab308",
   lift:"#001a0a", liftGreen:"#86efac",
-  exit:"#052e16",
+  exit:"#052e16", fork:"#1a1a00", forkYellow:"#facc15",
   yellow:"#fbbf24", green:"#22c55e", red:"#ef4444",
   blue:"#3b82f6", purple:"#c084fc",
 };
 
-const TILE = 42;
+const TILE = 36;
 const COLS = 14;
 const ROWS = 12;
 
-const W=1,F=0,C=2,M=3,P=4,E=5,R=6,X=7,S=8,CH=9,WE=10,TI=11,BO=12,LI=13;
+const W=1,F=0,C=2,M=3,P=4,E=5,R=6,X=7,S=8,CH=9,WE=10,TI=11,BO=12,LI=13,FK=14;
 
 // Expanded map with 3 new zones
 const MAP = [
   [W,W,W,W,W,W,W,W,W,W,W,W,W,W],
-  [W,F,F,F,F,F,F,F,F,F,F,F,F,W],
+  [W,F,F,F,FK,F,F,F,F,F,FK,F,F,W],
   [W,F,M,F,F,S,C,C,C,S,F,WE,F,W],
   [W,F,F,F,F,C,F,F,F,C,F,F,F,W],
   [W,F,P,F,F,C,F,F,F,C,F,CH,F,W],
@@ -37,7 +37,7 @@ const MAP = [
   [W,F,F,F,F,C,F,F,F,C,F,F,F,W],
   [W,F,R,F,F,C,F,F,F,C,F,BO,F,W],
   [W,F,F,F,F,S,C,C,C,S,F,F,F,W],
-  [W,F,LI,F,F,F,F,F,F,F,F,F,X,W],
+  [W,F,LI,F,F,F,F,X,F,F,F,F,F,W],
   [W,W,W,W,W,W,W,W,W,W,W,W,W,W],
 ];
 
@@ -78,13 +78,17 @@ const HAZARDS = {
          q:"You're grinding metal in the body shop. Sparks are flying. What must be in place?",
          opts:["Just your face shield","Fire blankets around the work area, face shield, and proper PPE","Safety glasses only","Nothing if you're quick"],
          ans:1, lesson:"Grinding sparks can travel 35 feet and ignite flammables. Fire blankets, face shield, gloves, and hearing protection are all required." },
+  [FK]:{ label:"Forklift / Pedestrian Zone", color:"#facc15", icon:"🚜",
+         q:"You're walking through the warehouse and a forklift is approaching. What do you do?",
+         opts:["Keep walking, the driver sees you","Make eye contact and walk behind it","Stop, make eye contact with operator, wait for signal to cross","Run across quickly"],
+         ans:2, lesson:"Never assume a forklift operator sees you. Always stop, make eye contact, get a clear signal before crossing. Forklifts have major blind spots and can weigh 9,000+ lbs." },
   [LI]:{ label:"Ergonomics / Lifting", color:PAL.liftGreen, icon:"📦",
          q:"You need to lift a 30lb part from the floor. What is the correct technique?",
          opts:["Bend at the waist and pull fast","Twist your body to build momentum","Bend your knees, keep back straight, lift with your legs","Just drag it across the floor"],
          ans:2, lesson:"Back injuries are the #1 injury in manufacturing. Bend knees, straight back, lift with legs. For anything over 50lbs, use a lift assist or get a partner." },
 };
 
-const HAZARD_SET = new Set([M,P,E,R,CH,WE,C,TI,BO,LI]);
+const HAZARD_SET = new Set([M,P,E,R,CH,WE,TI,BO,LI,FK]);
 const TOTAL_HAZARDS = 10;
 const START = {x:1,y:10};
 
@@ -232,6 +236,7 @@ function Tile({tile, cleared, tick}) {
     [WE]:{bg:PAL.weld,   border:`2px solid rgba(249,115,22,${pulse})`,   shadow:`0 0 ${8+pulse*6}px rgba(249,115,22,0.5)`},
     [TI]:{bg:PAL.tire,   border:`2px solid rgba(56,189,248,${pulse})`,   shadow:`0 0 ${8+pulse*6}px rgba(56,189,248,0.5)`},
     [BO]:{bg:PAL.body,   border:`2px solid rgba(234,179,8,${pulse})`,    shadow:`0 0 ${8+pulse*6}px rgba(234,179,8,0.5)`},
+    [FK]:{bg:PAL.fork,  border:`2px solid rgba(250,204,21,${pulse})`,   shadow:`0 0 ${8+pulse*6}px rgba(250,204,21,0.5)`},
     [LI]:{bg:PAL.lift,   border:`2px solid rgba(134,239,172,${pulse})`, shadow:`0 0 ${8+pulse*6}px rgba(134,239,172,0.5)`},
   };
 
@@ -323,6 +328,12 @@ export default function App() {
         });
         return prev;
       }
+      // Line violation — block stepping on conveyor
+      if(tile===C||tile===S){
+        setTimeout(()=>{ setPopup({tile:"LINE_VIOLATION"}); setChosen(null); },10);
+        setLives(l=>{ const nl=l-1; if(nl<=0) setTimeout(()=>setScreen("lose"),900); return nl; });
+        return prev;
+      }
       if(HAZARD_SET.has(tile)){
         setCleared(c=>{
           if(!c.has(tile)) setTimeout(()=>{ setPopup({tile}); setChosen(null); },10);
@@ -408,7 +419,7 @@ export default function App() {
             <input
               value={player.badge}
               onChange={e=>{ setPlayer(p=>({...p,badge:e.target.value})); setNameErr(""); }}
-              placeholder="e.g. EMP-4821"
+              placeholder="e.g. EMP-4821 (optional)"
               style={css.input}
             />
           </div>
@@ -416,12 +427,12 @@ export default function App() {
         </div>
 
         <button onClick={()=>{
-          if(!player.name.trim()||!player.badge.trim()){ setNameErr("Please enter your name and badge number."); return; }
+          if(!player.name.trim()){ setNameErr("Please enter your name to continue."); return; }
           setScreen("cutscene");
         }} style={css.btnBlue}>BEGIN TRAINING →</button>
 
         <div style={{textAlign:"center",marginTop:12,color:"#333",fontSize:11}}>
-          Your info is used only to track training completion.
+          Don't know your badge number? Just enter your name and put "N/A" for badge. This info is only used to track training completion.
         </div>
       </div>
     </div>
@@ -556,7 +567,7 @@ export default function App() {
     </div>
   );
 
-  const h=popup?HAZARDS[popup.tile]:null;
+  const h=popup&&popup.tile!=='LINE_VIOLATION'?HAZARDS[popup.tile]:null;
 
   return(
     <div style={css.page}>
@@ -606,12 +617,46 @@ export default function App() {
           <PixelPlayer/>
         </div>
 
-        {/* Popup */}
+        {/* Line Violation Popup */}
+        {popup&&popup.tile==="LINE_VIOLATION"&&(
+          <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.92)",display:"flex",
+            alignItems:"center",justifyContent:"center",zIndex:20,borderRadius:4}}>
+            <div style={{background:"#1a0000",border:"2px solid #ef4444",borderRadius:10,
+              padding:24,maxWidth:300,width:"92%",textAlign:"center",
+              boxShadow:"0 0 40px rgba(239,68,68,0.6)"}}>
+              {/* Flashing stop sign */}
+              <div style={{fontSize:52,marginBottom:8,animation:"pulse 0.5s infinite alternate"}}>🚫</div>
+              <div style={{fontSize:16,color:"#ef4444",fontWeight:"bold",marginBottom:6,letterSpacing:1}}>
+                LINE VIOLATION
+              </div>
+              <div style={{display:"flex",justifyContent:"center",gap:8,marginBottom:12}}>
+                <div style={{width:14,height:14,borderRadius:"50%",background:"#ef4444",
+                  boxShadow:"0 0 10px #ef4444"}}/>
+                <div style={{width:14,height:14,borderRadius:"50%",background:"#ef4444",
+                  boxShadow:"0 0 10px #ef4444"}}/>
+                <div style={{width:14,height:14,borderRadius:"50%",background:"#ef4444",
+                  boxShadow:"0 0 10px #ef4444"}}/>
+              </div>
+              <div style={{color:"#fff",fontSize:14,lineHeight:1.6,marginBottom:16}}>
+                ⛔ You stepped onto the assembly line. Employees are <strong>NOT</strong> permitted on the conveyor. Maintenance access only. This is a recordable safety violation.
+              </div>
+              <div style={{color:"#ef4444",fontWeight:"bold",fontSize:13,marginBottom:16}}>−1 Life</div>
+              <button onClick={closePopup} style={{display:"block",width:"100%",padding:12,
+                background:"#7f1d1d",color:"#fff",border:"2px solid #ef4444",
+                borderRadius:8,fontSize:14,fontWeight:"bold",cursor:"pointer",fontFamily:"inherit"}}>
+                Understood — Step Back
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Hazard Popup */}
         {popup&&h&&(
           <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.88)",display:"flex",
-            alignItems:"center",justifyContent:"center",zIndex:20,borderRadius:4}}>
+            alignItems:"flex-start",justifyContent:"center",zIndex:20,borderRadius:4,
+            overflowY:"auto",paddingTop:10,paddingBottom:10}}>
             <div style={{background:"#141414",border:`1px solid ${h.color}`,borderRadius:10,
-              padding:20,maxWidth:310,width:"92%",boxShadow:`0 0 20px ${h.color}44`}}>
+              padding:20,maxWidth:310,width:"92%",boxShadow:`0 0 20px ${h.color}44`,flexShrink:0}}>
               <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
                 <span style={{fontSize:20}}>{h.icon}</span>
                 <span style={{color:h.color,fontWeight:"bold",fontSize:14}}>{h.label}</span>
