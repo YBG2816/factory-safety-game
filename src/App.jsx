@@ -705,6 +705,15 @@ export default function App() {
         <div/><Dp label="▼" fn={()=>move(0,1)}/><div/>
       </div>
       <div style={{color:"#444",fontSize:11,marginTop:2}}>Walk into glowing zones · Clear all {TOTAL_HAZARDS} to unlock boss quiz</div>
+
+      {/* Footer */}
+      <div style={{marginTop:20,paddingTop:14,borderTop:"1px solid #1e1e1e",textAlign:"center",fontSize:12,color:"#444"}}>
+        Built by BG &nbsp;·&nbsp;
+        <a href="https://assetsystemsco.com" target="_blank"
+          style={{color:"#555",textDecoration:"none"}}>
+          Asset Systems Co.
+        </a>
+      </div>
     </div>
   );
 }
