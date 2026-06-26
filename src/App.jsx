@@ -1,5 +1,172 @@
 import { useState, useEffect, useRef } from "react";
 
+
+// ── Sound Effects (Web Audio API) ─────────────────────────────
+// Persistent unlocked audio context
+let _audioCtx = null;
+const getAudioCtx = () => {
+  if (!_audioCtx) {
+    _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (_audioCtx.state === 'suspended') {
+    _audioCtx.resume();
+  }
+  return _audioCtx;
+};
+
+// Unlock audio on first user interaction
+const unlockAudio = () => {
+  const ctx = getAudioCtx();
+  // Play silent buffer to unlock
+  const buf = ctx.createBuffer(1, 1, 22050);
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  src.connect(ctx.destination);
+  src.start(0);
+  document.removeEventListener('touchstart', unlockAudio);
+  document.removeEventListener('click', unlockAudio);
+};
+document.addEventListener('touchstart', unlockAudio);
+document.addEventListener('click', unlockAudio);
+
+const playSound = (type, mutedRef) => {
+  if(mutedRef && mutedRef.current) return;
+  try {
+    const ctx = getAudioCtx();
+
+    if (type === "correct") {
+      [523, 659].forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.frequency.value = freq; osc.type = "sine";
+        gain.gain.setValueAtTime(0.3, ctx.currentTime + i * 0.15);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + i * 0.15 + 0.3);
+        osc.start(ctx.currentTime + i * 0.15);
+        osc.stop(ctx.currentTime + i * 0.15 + 0.3);
+      });
+    }
+
+    if (type === "wrong") {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(200, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(80, ctx.currentTime + 0.4);
+      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+      osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.4);
+    }
+
+    if (type === "alarm") {
+      [0, 0.3, 0.6].forEach((t) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.type = "square";
+        osc.frequency.setValueAtTime(880, ctx.currentTime + t);
+        osc.frequency.setValueAtTime(440, ctx.currentTime + t + 0.15);
+        gain.gain.setValueAtTime(0.3, ctx.currentTime + t);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + t + 0.28);
+        osc.start(ctx.currentTime + t); osc.stop(ctx.currentTime + t + 0.3);
+      });
+    }
+
+    if (type === "hazard") {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = "sine"; osc.frequency.value = 440;
+      gain.gain.setValueAtTime(0.2, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+      osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.15);
+    }
+
+    if (type === "win") {
+      [523, 659, 784, 1047].forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.frequency.value = freq; osc.type = "sine";
+        gain.gain.setValueAtTime(0.3, ctx.currentTime + i * 0.12);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + i * 0.12 + 0.3);
+        osc.start(ctx.currentTime + i * 0.12);
+        osc.stop(ctx.currentTime + i * 0.12 + 0.3);
+      });
+    }
+
+    if (type === "footstep") {
+      // Soft boot tap on concrete
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const filter = ctx.createBiquadFilter();
+      osc.connect(filter); filter.connect(gain); gain.connect(ctx.destination);
+      osc.type = "sine"; osc.frequency.value = 120;
+      filter.type = "lowpass"; filter.frequency.value = 200;
+      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+      osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.08);
+    }
+
+    if (type === "machine") {
+      // Industrial machine hum - low rumble
+      const osc = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); osc2.connect(gain); gain.connect(ctx.destination);
+      osc.type = "sawtooth"; osc.frequency.value = 60;
+      osc2.type = "square"; osc2.frequency.value = 63;
+      gain.gain.setValueAtTime(0.08, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+      osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.5);
+      osc2.start(ctx.currentTime); osc2.stop(ctx.currentTime + 0.5);
+    }
+
+    if (type === "conveyor") {
+      // Belt hum - mid frequency mechanical drone
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const filter = ctx.createBiquadFilter();
+      osc.connect(filter); filter.connect(gain); gain.connect(ctx.destination);
+      osc.type = "sawtooth"; osc.frequency.value = 90;
+      filter.type = "bandpass"; filter.frequency.value = 150;
+      gain.gain.setValueAtTime(0.07, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+      osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.6);
+    }
+
+    if (type === "clank") {
+      // Metal clank - tire station
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = "triangle"; osc.frequency.value = 320;
+      gain.gain.setValueAtTime(0.25, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+      osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.2);
+    }
+
+    if (type === "weld") {
+      // Welding crackle - white noise burst
+      const bufferSize = ctx.sampleRate * 0.3;
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * 0.3;
+      const source = ctx.createBufferSource();
+      const gain = ctx.createGain();
+      const filter = ctx.createBiquadFilter();
+      source.buffer = buffer;
+      source.connect(filter); filter.connect(gain); gain.connect(ctx.destination);
+      filter.type = "highpass"; filter.frequency.value = 2000;
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+      source.start(ctx.currentTime);
+    }
+
+  } catch(e) {}
+};
+
 // ── Pixel palette ─────────────────────────────────────────────
 const PAL = {
   wall:"#1a1f2e", wallHL:"#252d42",
@@ -285,6 +452,8 @@ export default function App() {
   const [bossIdx,   setBossIdx]   = useState(0);
   const [bossChosen,setBossChosen]= useState(null);
   const [bossScore, setBossScore] = useState(0);
+  const [muted, setMuted] = useState(false);
+  const mutedRef = useRef(false);
   const [nameErr,   setNameErr]   = useState("");
 
   const popupRef = useRef(null);
@@ -330,16 +499,18 @@ export default function App() {
       }
       // Line violation — block stepping on conveyor
       if(tile===C||tile===S){
+        playSound("alarm", mutedRef);
         setTimeout(()=>{ setPopup({tile:"LINE_VIOLATION"}); setChosen(null); },10);
         setLives(l=>{ const nl=l-1; if(nl<=0) setTimeout(()=>setScreen("lose"),900); return nl; });
         return prev;
       }
       if(HAZARD_SET.has(tile)){
         setCleared(c=>{
-          if(!c.has(tile)) setTimeout(()=>{ setPopup({tile}); setChosen(null); },10);
+          if(!c.has(tile)){ playSound("hazard", mutedRef); setTimeout(()=>{ setPopup({tile}); setChosen(null); },10); }
           return c;
         });
       }
+      playSound("footstep", mutedRef);
       return{x:nx,y:ny};
     });
   };
@@ -359,8 +530,8 @@ export default function App() {
     if(chosen!==null||!popup) return;
     setChosen(i);
     const h=HAZARDS[popup.tile];
-    if(i===h.ans){ setScore(s=>s+25); setCleared(c=>new Set([...c,popup.tile])); }
-    else{ setLives(l=>{ const nl=l-1; if(nl<=0) setTimeout(()=>setScreen("lose"),900); return nl; }); }
+    if(i===h.ans){ playSound("correct", mutedRef); setScore(s=>s+25); setCleared(c=>new Set([...c,popup.tile])); }
+    else{ playSound("wrong", mutedRef); setLives(l=>{ const nl=l-1; if(nl<=0) setTimeout(()=>setScreen("lose"),900); return nl; }); }
   };
 
   const handleBossAnswer=(i)=>{
@@ -523,7 +694,7 @@ export default function App() {
   }
 
   // ── CERTIFIED ─────────────────────────────────────────────
-  if(screen==="certified") return(
+  if(screen==="certified"){ setTimeout(()=>playSound("win", mutedRef),300); return(
     <div style={css.page}>
       <div style={{...css.card,textAlign:"center"}}>
         <div style={{fontSize:52}}>🏆</div>
@@ -542,7 +713,7 @@ export default function App() {
         <button onClick={restart} style={css.btnGreen}>PLAY AGAIN</button>
       </div>
     </div>
-  );
+  ); }
 
   if(screen==="win") return(
     <div style={css.page}>
@@ -577,6 +748,12 @@ export default function App() {
         <span>{"❤️".repeat(lives)}{"🖤".repeat(3-lives)}</span>
         <span style={{color:"#fbbf24"}}>★ {score}</span>
         <span style={{color:"#22c55e"}}>✓ {cleared.size}/{TOTAL_HAZARDS}</span>
+        <button onClick={()=>setMuted(m=>!m)}
+          style={{background:"none",border:"1px solid #333",borderRadius:6,
+            color:muted?"#ef4444":"#888",fontSize:14,padding:"2px 8px",cursor:"pointer",
+            fontFamily:"inherit"}}>
+          {muted?"🔇":"🔊"}
+        </button>
       </div>
 
       {/* MAP */}
