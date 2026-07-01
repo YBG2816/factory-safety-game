@@ -68,10 +68,10 @@ Actively maintained and continuously improved.
 ## Screenshots
 
 ### Home Screen
-![Home Screen](home-screen.jpg)
+![Home Screen](https://raw.githubusercontent.com/YBG2816/factory-safety-game/main/home-screen.jpg)
 
 ### Gameplay
-![Gameplay](gameplay-screen.jpg)
+![Gameplay](https://raw.githubusercontent.com/YBG2816/factory-safety-game/main/gameplay-screen.jpg)
 
 ### Orientation
-![Orientation](orientation-screen.jpg)
+![Orientation](https://raw.githubusercontent.com/YBG2816/factory-safety-game/main/orientation-screen.jpg)
