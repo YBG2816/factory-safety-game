@@ -64,3 +64,14 @@ https://factory-safety-game.vercel.app
 ✅ Live Project
 
 Actively maintained and continuously improved.
+
+## Screenshots
+
+### Home Screen
+![Home Screen](home-screen.jpg)
+
+### Gameplay
+![Gameplay](gameplay-screen.jpg)
+
+### Orientation
+![Orientation](orientation-screen.jpg)
